@@ -1015,6 +1015,12 @@ function initModals() {
   const openNckhCard = document.getElementById("open-nckh-card");
   const awardsModalNckhItem = document.getElementById("awards-modal-nckh-item");
 
+  const simlabModal = document.getElementById("simlab-edu-modal");
+  const closeSimlabBtn = document.getElementById("close-simlab-modal-btn");
+  const openSimlabCard = document.getElementById("open-simlab-card");
+  const openSimlabProjItem = document.getElementById("open-simlab-proj-item");
+  const awardsModalSimlabItem = document.getElementById("awards-modal-simlab-item");
+
   function resetCardTilts() {
     document.querySelectorAll('.tilt-enabled').forEach(c => {
       c.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)';
@@ -1263,6 +1269,7 @@ function initModals() {
     if (allProjectsModal) allProjectsModal.classList.remove("active");
     if (olpModal) olpModal.classList.remove("active");
     if (nckhModal) nckhModal.classList.remove("active");
+    if (simlabModal) simlabModal.classList.remove("active");
     // Pause any playing YouTube iframe in gallery
     const galleryTrack = document.getElementById("modal-gallery-track");
     if (galleryTrack) {
@@ -1299,6 +1306,16 @@ function initModals() {
     }
   }
 
+  function openSimlabModal() {
+    closeAllModals();
+    if (simlabModal) {
+      simlabModal.classList.add("active");
+      document.body.classList.add("modal-open");
+      document.body.style.overflow = "hidden";
+      resetCardTilts();
+    }
+  }
+
   // Open OLP GreenMap modal from homepage award item
   if (openOlpCard) openOlpCard.addEventListener("click", openOlpModal);
   if (openOlpDetailBtn) {
@@ -1323,11 +1340,18 @@ function initModals() {
   // Open NCKH Paper modal from Awards Modal item
   if (awardsModalNckhItem) awardsModalNckhItem.addEventListener("click", openNckhModal);
 
+  // Open SimLab-Edu modal from homepage project item & award item
+  if (openSimlabProjItem) openSimlabProjItem.addEventListener("click", openSimlabModal);
+  if (openSimlabCard) openSimlabCard.addEventListener("click", openSimlabModal);
+
+  // Open SimLab-Edu modal from Awards Modal item
+  if (awardsModalSimlabItem) awardsModalSimlabItem.addEventListener("click", openSimlabModal);
+
   // Open individual project modal from preview list
   document.querySelectorAll(".project-preview-item").forEach(item => {
     item.addEventListener("click", () => {
       const key = item.getAttribute("data-project");
-      openProjectModal(key);
+      if (key) openProjectModal(key);
     });
   });
 
@@ -1342,7 +1366,7 @@ function initModals() {
     });
   }
 
-  // Open All Awards Modal (shows both awards)
+  // Open All Awards Modal (shows awards)
   if (openAwardsBtn && awardsModal) {
     openAwardsBtn.addEventListener("click", () => {
       closeAllModals();
@@ -1359,6 +1383,7 @@ function initModals() {
   if (closeAllProjectsBtn) closeAllProjectsBtn.addEventListener("click", closeAllModals);
   if (closeOlpBtn) closeOlpBtn.addEventListener("click", closeAllModals);
   if (closeNckhBtn) closeNckhBtn.addEventListener("click", closeAllModals);
+  if (closeSimlabBtn) closeSimlabBtn.addEventListener("click", closeAllModals);
 
   // Cards inside allProjectsModal that switch to detail case study
   if (allProjectsModal) {
@@ -1372,6 +1397,8 @@ function initModals() {
           setTimeout(() => {
             if (key === "greenmap") {
               openOlpModal();
+            } else if (key === "simlab") {
+              openSimlabModal();
             } else {
               openProjectModal(key);
             }
@@ -1382,7 +1409,7 @@ function initModals() {
   }
 
   // Click outside to close
-  [projectModal, awardsModal, allProjectsModal, olpModal, nckhModal].forEach(modal => {
+  [projectModal, awardsModal, allProjectsModal, olpModal, nckhModal, simlabModal].forEach(modal => {
     if (modal) {
       modal.addEventListener("click", (e) => {
         if (e.target === modal) {
@@ -1401,6 +1428,7 @@ function initModals() {
   // Initialize Screenshot Sliders
   initGreenMapSlider();
   initNckhSlider();
+  initSimlabSlider();
 }
 
 /* ==========================================================================
@@ -1526,6 +1554,115 @@ function initNckhSlider() {
   let current = 0;
   const slides = track.querySelectorAll(".case-slide");
   const total = slides.length || 6;
+  let autoTimer = null;
+
+  function goToSlide(index) {
+    current = (index + total) % total;
+    track.style.transform = `translateX(-${current * 100}%)`;
+    dots.forEach((dot, idx) => {
+      dot.classList.toggle("active", idx === current);
+    });
+    if (counter) counter.textContent = `${current + 1} / ${total}`;
+  }
+
+  function nextSlide() {
+    goToSlide(current + 1);
+  }
+
+  function prevSlide() {
+    goToSlide(current - 1);
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      nextSlide();
+      resetAuto();
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      prevSlide();
+      resetAuto();
+    });
+  }
+
+  dots.forEach(dot => {
+    dot.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(dot.getAttribute("data-index"), 10);
+      goToSlide(idx);
+      resetAuto();
+    });
+  });
+
+  // Touch Swipe Support for Mobile
+  let touchStartX = 0;
+  let touchEndX = 0;
+  track.addEventListener("touchstart", (e) => {
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      touchStartX = e.changedTouches[0].screenX;
+    }
+  }, { passive: true });
+
+  track.addEventListener("touchend", (e) => {
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }
+  }, { passive: true });
+
+  function handleSwipe() {
+    const diff = touchEndX - touchStartX;
+    if (Math.abs(diff) > 40) {
+      if (diff < 0) nextSlide();
+      else prevSlide();
+      resetAuto();
+    }
+  }
+
+  function startAuto() {
+    stopAuto();
+    autoTimer = setInterval(nextSlide, 5000);
+  }
+
+  function stopAuto() {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+  }
+
+  function resetAuto() {
+    stopAuto();
+    startAuto();
+  }
+
+  if (container) {
+    container.addEventListener("mouseenter", stopAuto);
+    container.addEventListener("mouseleave", startAuto);
+  }
+
+  startAuto();
+}
+
+/* ==========================================================================
+   12. SimLab-Edu Screenshot Slider Controller
+   ========================================================================== */
+function initSimlabSlider() {
+  const track = document.getElementById("simlab-slider-track");
+  const prevBtn = document.getElementById("simlab-slider-prev-btn");
+  const nextBtn = document.getElementById("simlab-slider-next-btn");
+  const dots = document.querySelectorAll("#simlab-slider-dots-container .slider-dot-btn");
+  const counter = document.getElementById("simlab-slider-counter");
+  const container = document.getElementById("simlab-slider");
+  if (!track) return;
+
+  let current = 0;
+  const slides = track.querySelectorAll(".case-slide");
+  const total = slides.length || 5;
   let autoTimer = null;
 
   function goToSlide(index) {
